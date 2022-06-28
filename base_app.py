@@ -54,14 +54,27 @@ st.set_option('deprecation.showPyplotGlobalUse', False)
 import pandas as pd
 import numpy as np
 import base64
+
+# new
+import streamlit as st
+from streamlit_option_menu import option_menu
+import streamlit.components.v1 as html
+from  PIL import Image
+import numpy as np
+import cv2
+import pandas as pd
+from st_aggrid import AgGrid
+import plotly.express as px
+import io 
+#-------------resources\imgs\pkl\count_vect.pkl
 # Vectorizer
-news_vectorizer = open("resources/count_vect.pkl","rb")
+news_vectorizer = open("resources/imgs/pkl/count_vect.pkl","rb")
 tweet_cv = joblib.load(news_vectorizer) # loading your vectorizer from the pkl file
 
 # Load your raw data
 raw = pd.read_csv("resources/train.csv")
 retweet = 'RT'
-mask = np.array(Image.open('resources/10wmt-superJumbo-v4.jpg'))
+mask = np.array(Image.open('resources/imgs/images for streamlit/10wmt-superJumbo-v4.jpg'))
 import streamlit.components.v1 as components
 
 
@@ -112,7 +125,7 @@ def put_numbers_on_bars(axis_object):
 
 def sent_decider(compound):
     """
-    Function to determine if sentiment is positive, nuetral or negative.
+    Function to determine if sentiment is positive, neutral or negative.
     """
     neutral_point = 0.00
     if compound > neutral_point:
@@ -125,7 +138,7 @@ def sent_decider(compound):
 
 st.cache(suppress_st_warning=True,allow_output_mutation=True)
 def class_analysis(df):
-    df['sent_labels']  = df['sentiment'].map({-1: 'Anti',0:'Neutral', 1:'Pro', 2:'News'})
+    df['sent_labels']  = df['sentiment'].map({1:'Pro',2:'News',0:'Neutral',-1: 'Anti'})
     fig, axes = plt.subplots(ncols=2, nrows=1, figsize=(20, 10), dpi=100)
     
     sns.countplot(df['sent_labels'], ax=axes[0])
@@ -133,6 +146,14 @@ def class_analysis(df):
     axes[1].pie(df['sent_labels'].value_counts(),labels= code_labels,autopct='%1.0f%%',startangle=90,explode = (0.1, 0.1, 0.1, 0.1))
     fig.suptitle('Sentiment Class Analysis', fontsize=20)
     st.pyplot(fig)
+
+st.cache(suppress_st_warning=True,allow_output_mutation=True)
+import plotly.graph_objects as go
+def class_funnel(df):
+	fig = go.Figure(go.Funnel(y = ["Pro","News", "Nuetral", "Anti"],x = round(df.sentiment.value_counts(normalize = True) * 100,2)))
+	fig.update_layout(height=700,width = 900, showlegend=False, title_text="Tweets data distribution by sentiment")
+	fig.show()
+    # st.go(fig)	
 
 st.cache(suppress_st_warning=True,allow_output_mutation=True)
 def class_dist(df):
@@ -174,20 +195,45 @@ def word_count(train):
 
 
 st.cache(suppress_st_warning=True,allow_output_mutation=True)
+from nltk.tokenize import TreebankWordTokenizer
 def data_cleaning(df):
-    wnl = WordNetLemmatizer()
-    df['message'] = df['message'].apply(mentions)
-    #df['message'] = df['message'].apply(lambda x: contractions.fix(x))
-    df['message'] = df['message'].str.replace(r"http\S+|www.\S+", "", case=False)
-    df['message'] = df['message'].map(lambda x: remove_punc(str(x)))
-    df['message'] = df['message'].apply(word_tokenize)
-    df['message'] = df['message'].apply(lambda x: [word for word in x if word not in retweet])
-    df['message'] = df['message'].apply(lambda x : [word.lower() for word in x])
-    df['message'] = df['message'].apply(lambda x: [word for word in x if word not in StopWords()])
-    df['pos_tags'] = df['message'].apply(nltk.tag.pos_tag)
-    df['wordnet_pos'] = df['pos_tags'].apply(lambda x: [(word, get_wordnet_pos(pos_tag)) for (word, pos_tag) in x])
-    df['message'] = df['wordnet_pos'].apply(lambda x: [wnl.lemmatize(word, tag) for word, tag in x])
-    return df
+		def preprocess(text):
+			"""This function takes in pandas dataframe, removes URL hyperlinks, stopwords, punctuation noises,contractions and lemmatize the text."""
+
+			tokenizer = TreebankWordTokenizer() 
+			lemmatizer = WordNetLemmatizer()
+			stopwords_list = stopwords.words('english')
+			point_noise = string.punctuation + '0123456789'
+			
+			cleanText = re.sub(r'@[a-zA-Z0-9\_\w]+', '', text)#Remove @mentions
+			cleanText = re.sub(r'#[a-zA-Z0-9]+', '', cleanText) #Remove '#' symbols
+			cleanText = re.sub(r'RT', '', cleanText)#Remove RT from text
+			#Panding Contractions
+			# specific
+			cleanText = re.sub(r"won\'t", "will not", cleanText)
+			cleanText = re.sub(r"can\'t", "can not", cleanText)
+			#Panding Contractions
+			# general
+			cleanText = re.sub(r"n\'t", " not", cleanText)
+			cleanText = re.sub(r"\'re", " are", cleanText)
+			cleanText = re.sub(r"\'s", " is", cleanText)
+			cleanText = re.sub(r"\'d", " would", cleanText)
+			cleanText = re.sub(r"\'ll", " will", cleanText)
+			cleanText = re.sub(r"\'t", " not", cleanText)
+			cleanText = re.sub(r"\'ve", " have", cleanText)
+			cleanText = re.sub(r"\'m", " am", cleanText)
+			cleanText = ''.join([word for word in cleanText if word not in point_noise]) #Removing punctuations and numbers.
+			cleanText = cleanText.lower() #Lowering case
+			cleanText = "".join(word for word in cleanText if ord(word)<128) #Removing NonAscii
+			cleanText = tokenizer.tokenize(cleanText) #Coverting each words to tokens
+			cleanText = [lemmatizer.lemmatize(word) for word in cleanText if word not in stopwords_list] #Lemmatizing and removing stopwords
+			cleanText = [word for word in cleanText if len(word) >= 2]
+			# cleanText = ' '.join(cleanText)
+			#return cleanText
+			return cleanText
+		df["message"]=df["message"].apply(preprocess)
+
+		return df
 
 st.cache(suppress_st_warning=True,allow_output_mutation=True)
 def pro_mostpopular(df):
@@ -272,7 +318,7 @@ def wordcloud_visualizer(df):
 
 
 def tweet_cloud(df):
-	mask = np.array(Image.open('resources/10wmt-superJumbo-v4.jpg'))
+	mask = np.array(Image.open('resources/imgs/images for streamlit/10wmt-superJumbo-v4.jpg'))
 	words = df['message']
 	allwords = []
 	for wordlist in words:
@@ -288,16 +334,16 @@ def tweet_cloud(df):
 def prediction_output(predict):
     if predict[0]==-1:
         output="The text has been classified as Anti "
-        st.error("Text Sentiment Categorized as: {}".format(output))
+        st.error("Results: {}".format(output))
     elif predict[0]==0:
         output="The text has been classified as Neutral"
-        st.info("Text Sentiment Categorized as: {}".format(output))
+        st.info("Results: {}".format(output))
     elif predict[0]==1:
         output ="The text has been classified as Pro"
-        st.success("Text Sentiment Categorized as: {}".format(output))
+        st.success("Results: {}".format(output))
     else:
         output = "The text has been classified as News"
-        st.warning("Text Sentiment Categorized as: {}".format(output))
+        st.warning("Results: {}".format(output))
 
 st.cache(suppress_st_warning=True,allow_output_mutation=True)
 def markup(selection):
@@ -356,130 +402,194 @@ def main():
 
 	# Creating sidebar with selection box -
 	# you can create multiple pages this way
-	logo = Image.open('logo1.png')
+	logo = Image.open('resources/imgs/images for streamlit/logo1.png')
 	st.sidebar.image(logo, use_column_width=True)
-	set_bg_hack('bakn.png')
+	set_bg_hack('resources/imgs/images for streamlit/bakn.png')
 
-	options = ["Company Profile","About Predict","Text Classification","Exploratory Data Analysis","Model Metrics Evaluation"]
+	options = ["Text Classification","Exploratory Data Analysis","Model Metrics Evaluation","About Predict","Company Profile"]
 	selection = st.sidebar.selectbox("Menu", options)
 	# Building out the "Information" page
 	if selection == "Company Profile":
 		
 		# title_tag("Siders Analytics EST 2022")
 		# You can read a markdown file from supporting resources folder
-		st.image('resources/p1n.png', use_column_width=True)
-		# def st_display_pdf(pdf_file):
-		with open("pa2.pdf","rb") as f:
-			base64_pdf = base64.b64encode(f.read()).decode('utf-8')
-		pdf_display = F'<iframe src="data:application/pdf;base64,{base64_pdf}" width="700" height="1200" type="application/pdf"></iframe>'
-		st.markdown(pdf_display, unsafe_allow_html=True) 
-		# st_display_pdf("pa2.pdf")
+		st.image('resources/imgs/images for streamlit/p1n.png', use_column_width=True)
+		# def st_display_pdf(pdf_files):
+		# with open("resources/imgs/images for streamlit/pa2.pdf","rb") as f:
+		# 	base64_pdf = base64.b64encode(f.read()).decode('utf-8')
+		# pdf_display = F'<iframe src="data:application/pdf;base64,{base64_pdf}" width="700" height="1200" type="application/pdf"></iframe>'
+		# st.markdown(pdf_display, unsafe_allow_html=True) 
+		# # st_display_pdf("pa2.pdf")
+		st.image('resources/imgs/images for streamlit/latest1.jpg', use_column_width=True)
 
 			
 	if selection == "About Predict":
 		title_tag("Climate Change Sentiment Analysis brougth to you by siders analytics")
 		# You can read a markdown file from supporting resources folder
-		st.image('resources/twitter-removebg-preview.png', caption='Tweeet Attack',use_column_width=True)
+		st.image('resources/imgs/images for streamlit/twitter-removebg-preview.png', caption='Tweeet Attack',use_column_width=True)
 
 		# st.markdown("<h2 style='color:#00ACEE'>Introduction</h3><br/>",unsafe_allow_html=True)
 		title_tag("Introduction")
-		st.image('intro.png',use_column_width=True)
+		st.image('resources/imgs/images for streamlit/intro.png',use_column_width=True)
 		title_tag("Problem Statement")
 		
-		st.image('problem statment.png',use_column_width=True)
-		st.image('output-onlinegiftools.gif',use_column_width=True)
+		st.image('resources/imgs/images for streamlit/problem statment.png',use_column_width=True)
+		st.image('resources/imgs/images for streamlit/output-onlinegiftools.gif',use_column_width=True)
 		# st.markdown("<h3 style='color:#00ACEE'>  zf5 #SIDERS ANALYTICS</h3><br/>",unsafe_allow_html=True)
 		title_tag("zf5 #SIDERS ANALYTICS")
 		
-	# Building out the predication page
+	# Building out the predication pages
 	if selection == "Text Classification":
-		markup(selection)
-		# Creating a text box for user input
-		models = ["Decision Tree Classifier","RandomForest Classifier","LGBMClassifier","Stochastic Gradient Classifer","Support Vector Classifier","Linear Support Vector Classifier","Logisitic Regression Classifier"]
-		modeloptions = st.selectbox("Choose Predictive Classification Model",models)
-		if modeloptions =="Decision Tree Classifier":
-			st.info("* Non-parametric supervised learning approaches for classification and regression are Decision Trees (DTs). With a set of if-then-else decision rules, decision trees learn from data to approximate a sine curve. The decision criteria get more complicated as the tree grows deeper, and the model becomes more accurate.\n * In the shape of a tree structure, the decision tree constructs classification or regression models. It partitions data into subgroups following each choice, while also developing an associated decision tree progressively. The end result is a tree containing leaf nodes and decision nodes. There are two or more branches on a decision node. A categorization or decision is represented by the leaf node. Root node is the topmost decision node in a tree that corresponds to the best predictor. Both category and numerical data may be handled using decision trees.")
-			st.image('https://i.ibb.co/wYXFgxd/24.png',use_column_width=True)
-			tweet_text = st.text_area("Enter Text", "Type Here")
+		with st.sidebar:
+			choose = option_menu("App Models", ["Decision Tree Classifier","RandomForest Classifier","Logisitic Regression Classifier"],
+								icons=['tropical-storm', 'tree', 'kanban', 'bar-chart-steps','bezier', 'alt','bezier2'],
+								menu_icon="app-indicator", default_index=0,
+								styles={
+				"container": {"padding": "5!important", "background-color": "#f1f2f6"},
+				"icon": {"color": "orange", "font-size": "25px"}, 
+				"nav-link": {"font-size": "16px", "text-align": "left", "margin":"0px", "--hover-color": "#eee"},
+				"nav-link-selected": {"background-color": "#585858"},		
+					}
+					)			
+		
+		if choose =="Decision Tree Classifier":
+			title_tag("Decision Tree Classifier")
+			tweet_text = st.text_area("Enter Text to be predicted using Decision Tree Classifier", "Type Here")
 			if st.button("Predict text class with Decision Tree Classifier"):
-				pred = joblib.load(open(os.path.join("resources/ridge_tfidf.pkl"),"rb"))
+				pred = joblib.load(open(os.path.join("resources/imgs/pkl/ridge_tfidf.pkl"),"rb"))
 				predict = pred.predict([tweet_text])
 				prediction_output(predict)
-		if modeloptions =="Stochastic Gradient Classifer":
-			st.info("Stochastic Gradient Descent (SGD) Classifier is a simple yet very efficient approach to fitting linear classifiers and regressors under convex loss functions such as (linear) Support Vector Machines and Logistic Regression.")
-			tweet_text = st.text_area("Enter Text","Type Here")
+			st.info("## Decision Tree Classifier\n *Decision Trees are non-parametric supervised learning techniques for classification and regression (DTs). Decision trees learn from data and then use a series of if-then-else decision rules to approximate a sine curve. Decision trees may be used to handle both categorical and numerical data.")
+			st.image('https://i.ibb.co/wYXFgxd/24.png',use_column_width=True)
+
+		if choose =="LGBMClassifier":
+			title_tag("LGBMClassifier")
+			tweet_text = st.text_area("Enter Text to be predicted using LGBMClassifier", "Type Here")
+			if st.button("Predict text class with Decision Tree Classifier"):
+				pred = joblib.load(open(os.path.join("resources/imgs/pkl/ridge_tfidf.pkl"),"rb"))
+				predict = pred.predict([tweet_text])
+				prediction_output(predict)
+			st.info("## LGBMClassifier\n LightGBM is a gradient boosting framework that employs a tree-based learning method as well. LightGBM differs from other tree-based algorithms in that it develops trees vertically, whilst other algorithms grow them horizontally. This implies that Light GBM grows trees leaf-by-leaf, whereas other algorithms grow trees level-by-level.LightGBM will grow the leaf with the greatest delta loss. Leaf-wise algorithms can minimize more loss than level-wise algorithms while expanding the same leaf.The LightGBM architecture has a number of advantages.\n\n- Increased training efficiency and speed.\n- Memory use is reduced.\n- Increased precision.\n- Parallel and GPU learning are supported.\n- Capable of dealing with massive amounts of data \nThe diagrams below show how LightGBM and other boosting techniques are implemented.")
+			st.image('https://i.ibb.co/7vtySS2/A-Group-2-2.png',use_column_width=True)
+
+		if choose =="RandomForest Classifier":
+			title_tag("RandomForest Classifier")
+			tweet_text = st.text_area("Enter Text to be predicted using RandomForest Classifier", "Type Here")
+			if st.button("Predict text class with Decision Tree Classifier"):
+				pred = joblib.load(open(os.path.join("resources/imgs/pkl/ridge_tfidf.pkl"),"rb"))
+				predict = pred.predict([tweet_text])
+				prediction_output(predict)
+			st.info("## RandomForest Classifier\n* Random forest is a supervised learning technique that may be used to predict and classify data. A forest is made up of a variety of different trees. Unlike decision trees, it is thought that the more trees a forest contains, the more robust it is. By building trees on random subsets, `Random Forest` eliminates overfitting.\n\nThere are four steps to the Random Forest algorithm.\n1. Chooses a collection of random samples from a dataset.\n2. For each sample, create a decision tree and extract a prediction result from each decision tree.\n3. Cast a vote for each expected outcome.\n4. As the final forecast, choose the prediction with the most votes.\n\n The figure below shows a visual depiction of a Random Forest classifier.")
+			st.image('https://i.ibb.co/ZXF9744/A-Group-2.png',use_column_width=True)
+
+				
+		if choose =="Stochastic Gradient Descent":
+			title_tag("Stochastic Gradient Descent")
+			tweet_text = st.text_area("Enter Text to be predicted using Stochastic Gradient Classifer","Type Here")
 			if st.button("Predict text class with Stochastic Gradient Classifer"):
-				pred = joblib.load(open(os.path.join("resources/SGD_tfidf.pkl"),"rb"))
+				pred = joblib.load(open(os.path.join("resources/imgs/pkl/SGD_tfidf.pkl"),"rb"))
 				predict = pred.predict([tweet_text])
 				prediction_output(predict)
-		if modeloptions == "Linear Support Vector Classifier":
-			st.info("SVM or Support Vector Machine is a linear model for classification and regression problems.It constructs a hyperplane or set of hyperplanes in a high- or infinite-dimensional space, which can be used for classification, regression.")
-			tweet_text = st.text_area("Enter Text","Type Here")
+			st.info("## Stochastic Gradient Descent\n**Stochastic Gradient Descent (SGD)** is a quick and easy way to fit linear classifiers and regressors to convex loss functions like Support Vector Machines and Logistic Regression. Despite the fact that SGD has been around for a long time in the machine learning field, it has only lately gained traction in the context of large-scale learning.\nFor each iteration of Stochastic Gradient Descent, a few samples are chosen at random instead of the entire data set.\n The following are some of the benefits of Stochastic Gradient Descent:\n* Effectiveness.\n* Simplicity of implementation (lots of opportunities for code tuning).")
+			st.image('https://i.ibb.co/V2XhNkf/A-Group-2-4.png',use_column_width=True)			
+
+		if choose == "Linear Support Vector Classifier":
+			title_tag("Linear Support Vector Classifier")
+			tweet_text = st.text_area("Enter Text to be predicted using","Type Here")
 			if st.button("Predict text class with Linear Support Vector Classifier"):
-				pred = joblib.load(open(os.path.join("resources/Lsvc_tfidf.pkl"),"rb"))
+				pred = joblib.load(open(os.path.join("resources/imgs/pkl/Lsvc_tfidf.pkl"),"rb"))
 				predict = pred.predict([tweet_text])
 				prediction_output(predict)
-		elif modeloptions =="Support Vector Classifier":
-			st.info("a support-vector machine constructs a hyperplane or set of hyperplanes in a high- or infinite-dimensional space, which can be used for classification, regression, or other tasks like outliers detection.")
-			svc_text = st.text_area("Enter Text","Type Here")
+			st.info("SVM or Support Vector Machine is a linear model for classification and regression problems.It constructs a hyperplane or set of hyperplanes in a high- or infinite-dimensional space, which can be used for classification, regression.")
+
+
+		elif choose =="Support Vector Classifier":
+			title_tag("Support Vector Classifier")
+			svc_text = st.text_area("Enter Text to be predicted using Support Vector Classifier","Type Here")
 			if st.button("Predict text class with Support Vector Classifier"):
-				pred = joblib.load(open(os.path.join("resources/SVCGrid.pkl"),"rb"))
+				pred = joblib.load(open(os.path.join("resources/imgs/pkl/SVCGrid.pkl"),"rb"))
 				predict = pred.predict([svc_text])
 				prediction_output(predict)
-		elif modeloptions =="Logisitic Regression Classifier":
-			st.info("the logistic model (or logit model) is used to model the probability of a certain class or event existing such as pass/fail, win/lose, alive/dead or healthy/sick. This can be extended to model several classes of events such as determining whether an image contains a cat, dog, lion, etc.")
-			logi_text = st.text_area("Enter Text","Type Here")
+			st.info("## Support Vector Classifier \n The Support Vector Machine, or SVM, is a linear model that can be used to solve classification and regression issues. It can handle both linear and nonlinear problems and is useful for a wide range of applications. SVM is a basic concept: As seen in the picture below, the method generates a line or hyperplane that divides the data into classes.")
+			st.image('https://i.ibb.co/JQqm2vV/A-Group-2-1.png',use_column_width=True)
+
+		elif choose =="Logisitic Regression Classifier":
+			title_tag("Logisitic Regression Classifier")
+			logi_text = st.text_area("Enter Text to be predicted using Logisitic Regression Classifier","Type Here")
 			if st.button("Predict text class with Logisitic Regression Classifier"):
-				pred = joblib.load(open(os.path.join("resources/logreg_tfidf.pkl"),"rb"))
+				pred = joblib.load(open(os.path.join("resources/imgs/pkl/logreg_tfidf.pkl"),"rb"))
 				predict = pred.predict([logi_text])
 				prediction_output(predict)
-	
-	if selection == "Exploratory Data Analysis":
-		markup(selection)
-		print('....Cleaning the Raw data')
-		train = data_cleaning(raw)
-		visuals =["Sentiment Class Analysis","Message length for each sentiment class","Popular Words Analysis","Word Cloud Analysis","Sentiment Analysis Insights"]
-		visualselection = st.selectbox("Choose EDA visuals",visuals)
+			st.info("## Logisitic Regression Classifier\n The statistical approach of **logistic regression** is used to predict binary classes. The result or goal variable is a binary variable. The term dichotomous refers to the fact that there are only two potential classifications. It can, for example, be utilized to solve cancer detection issues. It calculates the likelihood of an event occurring.Logistic regression classifies each data point into the best-estimated class based on its likelihood of belonging to that class.For linearly separable data, logistic regression has been ranked as the highest performing model, especially for predicting binary data (Yes & NO or 1 & 0), and it performs better when there is no class imbalance.\nThe sigmoid function is used by logistic regression models to create predictions, as seen in the diagram below:")
+			st.image('https://i.ibb.co/Rb9F7Zr/A-Group-2-3.png',use_column_width=True)
 
-		if visualselection == "Sentiment Class Analysis":
-			print('..... Creating the sentiment class analysis visual')
+	if selection == "Exploratory Data Analysis":
+		with st.sidebar:
+			choose = option_menu("EDA visuals", ["Sentiment Class Analysis","Name Entity Recognition","Popular Words Analysis","Word Cloud Analysis"],
+								icons=['emoji-smile', 'person-circle', 'file-earmark-word-fill', 'cloud-haze2-fill'],
+								menu_icon="app-indicator", default_index=0,
+								styles={
+				"container": {"padding": "5!important", "background-color": "#f1f2f6"},
+				"icon": {"color": "orange", "font-size": "25px"}, 
+				"nav-link": {"font-size": "16px", "text-align": "left", "margin":"0px", "--hover-color": "#eee"},
+				"nav-link-selected": {"background-color": "#585858"},		
+					}
+					)
+
+		if choose == "Sentiment Class Analysis":
 			title_tag("Sentiment Class Analysis")
-			class_analysis(train)
-		elif visualselection == "Message length for each sentiment class":
-			print('...... Creating the sentiment class message length visual')
-			title_tag('Message length for each sentiment class')
-			class_dist(train)
-		elif visualselection =="Popular Words Analysis":
-			print('...... Creating the popular words visual')
+			st.image('resources/imgs/images for streamlit/barani.gif',use_column_width=True)
+			
+			
+		elif choose == "Name Entity Recognition":
+			title_tag('Name Entity Recognition')
+			st.image('resources/imgs/images for streamlit/ner.png',use_column_width=True)
+			
+			
+
+		elif choose =="Popular Words Analysis":
 			title_tag("Popular Words Analysis")
-			popularwords_visualizer(train)
-		elif visualselection == "Word Cloud Analysis":
-			print('..... Creating the WordClouds for sentiment classes')
-			title_tag("Word Cloud Analysis")
-			wordcloud_visualizer(train)
+			st.image('resources/imgs/images for streamlit/allf.png',use_column_width=True)
+			
+
+		elif choose == "Word Cloud Analysis":
 			title_tag("Word Cloud for the entire Data set")
-			tweet_cloud(train)
+			st.image('resources/imgs/images for streamlit/wortwee.gif',use_column_width=True)
+
 	if selection == "Model Metrics Evaluation":
+		with st.sidebar:
+			choose = option_menu("Model Evaluation", ["Linear Support Vector Classifier","Support Vector Classifier","Ridge Classifier","Logisitic Regression Classifier","Stochastic Gradient Classifier"],
+								icons=['tropical-storm', 'tree', 'kanban', 'bar-chart-steps','bezier', 'alt','bezier2'],
+								menu_icon="app-indicator", default_index=0,
+								styles={
+				"container": {"padding": "5!important", "background-color": "#f1f2f6"},
+				"icon": {"color": "orange", "font-size": "25px"}, 
+				"nav-link": {"font-size": "16px", "text-align": "left", "margin":"0px", "--hover-color": "#eee"},
+				"nav-link-selected": {"background-color": "#585858"},		
+					}
+					)
+
 		title_tag(selection)
-		st.markdown("<h3 style='color:#00ACEE'>Performance Metrics for model evaluation</h3>",unsafe_allow_html=True)
-		components.html(
-			"""
-			<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css" integrity="sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2" crossorigin="anonymous" />
-			<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
-			<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ho+j7jyWK8fNQe+A12Hb8AhRq26LrZ/JpcUGGOn+Y7RsweNrtN/tE3MoK7ZeZDyx" crossorigin="anonymous"></script>
-			<div class="d-flex justify-content-center mb-0">
-				<p class="font-weight-bold">We will evaluate our models using the the F1 Score which is the number of true instances for each label.</p>
-			</div>
-			"""
-		)
-		modelselection = ["Linear Support Vector Classifier","Support Vector Classifier","Ridge Classifier","Logisitic Regression Classifier","Stochastic Gradient Classifier"]
-		modeloptions = st.selectbox("Choose Model Metrics By Model Type",modelselection)
-		if modeloptions =="Linear Support Vector Classifier":
+		st.markdown("<h3 style='color:#00ACEE'align='center'>Performance Metrics for model evaluation</h3>",unsafe_allow_html=True)
+		# components.html(
+		# 	"""
+		# 	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css" integrity="sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2" crossorigin="anonymous" />
+		# 	<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
+		# 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ho+j7jyWK8fNQe+A12Hb8AhRq26LrZ/JpcUGGOn+Y7RsweNrtN/tE3MoK7ZeZDyx" crossorigin="anonymous"></script>
+		# 	<div class="d-flex justify-content-center mb-0">
+		# 		<p class="font-weight-bold"></p>
+		# 	</div>
+		# 	"""
+		# )
+		st.info(	"We will evaluate our models using the the F1 Score which is the number of true instances for each label")		
+		# modelselection = ["Linear Support Vector Classifier","Support Vector Classifier","Ridge Classifier","Logisitic Regression Classifier","Stochastic Gradient Classifier"]
+		# modeloptions = st.selectbox("Choose Model Metrics By Model Type",modelselection)
+		if choose =="Linear Support Vector Classifier":
 			title_tag("Evaluation Of the Linear Support Vector Classifier")
 			st.markdown("<h4 style='color:#00ACEE; text-align:center !important'>Linear Support Vector Classifier Confusion Matrix</h4>",unsafe_allow_html=True)
-			st.image('LinearSVC-cm.png',use_column_width=True)
+			st.image('resources/imgs/images for streamlit/LinearSVC-cm.png',use_column_width=True)
 			st.markdown("<h4 style='color:#00ACEE; text-align:center !important'>Linear Support Vector Classifier F1-Score predictive accuracy</h4>",unsafe_allow_html=True)
-			st.image('LinearSVC-f1-score.png',use_column_width=True)
+			st.image('resources/imgs/images for streamlit/LinearSVC-f1-score.png',use_column_width=True)
 			st.markdown("""<div>
 				<h5 style='color:#00ACEE'>Key Observations</h5>
 				<ul>
@@ -496,12 +606,12 @@ def main():
 					</li>
 				</ul>
 			</div>""",unsafe_allow_html=True)
-		elif modeloptions =="Support Vector Classifier":
+		elif choose =="Support Vector Classifier":
 			title_tag("Evaluation Of the Support Vector Classifier")
 			st.markdown("<h4 style='color:#00ACEE; text-align:center !important'>Support Vector Classifier Confusion Matrix</h4>",unsafe_allow_html=True)
-			st.image('resources/SCV-cm.png',use_column_width=True)
+			st.image('resources/imgs/images for streamlit/SCV-cm.png',use_column_width=True)
 			st.markdown("<h4 style='color:#00ACEE; text-align:center !important'>Linear Support Vector Classifier F1-Score predictive accuracy</h4>",unsafe_allow_html=True)
-			st.image('resources/SVC-f1-score.png',use_column_width=True)
+			st.image('resources/imgs/images for streamlit/SVC-f1-score.png',use_column_width=True)
 			st.markdown("""<div>
 				<h5 style='color:#00ACEE'>Key Observations</h5>
 				<ul>
@@ -513,10 +623,10 @@ def main():
 					</li>
 				</ul>
 			</div>""",unsafe_allow_html=True)
-		elif modeloptions =="Ridge Classifier":
+		elif choose =="Ridge Classifier":
 			title_tag("Evaluation Of the Ridge Classifier")
 			st.markdown("<h4 style='color:#00ACEE; text-align:center !important'>Ridge Classifier Confusion Matrix</h4>",unsafe_allow_html=True)
-			st.image('LinearSVC-cm.png',use_column_width=True)
+			st.image('resources/imgs/images for streamlit/LinearSVC-cm.png',use_column_width=True)
 			st.markdown("""<div>
 				<h5 style='color:#00ACEE'>Key Observations</h5>
 				<p>A Classification report is used to measure the quality of predictions from a classification algorithm.The confusion matrix heatmap shows the model's ability to classify positive samples, each class achieving a recall score of:</p>
@@ -537,7 +647,7 @@ def main():
 				<p>The major concern here is that the Ridge classification classified 40% of of neutral tweets as Pro climate change tweets</p>
 			</div>""",unsafe_allow_html=True)
 			st.markdown("<h4 style='color:#00ACEE; text-align:center !important'>Linear Support Vector Classifier F1-Score predictive accuracy</h4>",unsafe_allow_html=True)
-			st.image('LinearSVC-f1-score.png',use_column_width=True)
+			st.image('resources/imgs/images for streamlit/LinearSVC-f1-score.png',use_column_width=True)
 			st.markdown("""<div>
 				<h5 style='color:#00ACEE'>Key Observations</h5>
 				<p>The above bar graph shows the f1 score for each sentiment class using the Classificatio</p>
@@ -549,12 +659,12 @@ def main():
 						Just like the support Vector Classifier, we see that Ridge Classifier does very good job at classifying the anti and neutral sentiment class
 					</li>
 			</div>""",unsafe_allow_html=True)
-		elif modeloptions =="Logisitic Regression Classifier":
+		elif choose =="Logisitic Regression Classifier":
 			title_tag("Evaluation Of the Logisitic Regression Classifier")
 			st.markdown("<h4 style='color:#00ACEE; text-align:center !important'>Logisitic Regression Classifier Confusion Matrix</h4>",unsafe_allow_html=True)
-			st.image('resources/LR-cm.png',use_column_width=True)
+			st.image('resources/imgs/images for streamlit/LR-cm.png',use_column_width=True)
 			st.markdown("<h4 style='color:#00ACEE; text-align:center !important'>Logisitic Regression Classifier F1-Score predictive accuracy</h4>",unsafe_allow_html=True)
-			st.image('resources/LR-f1-score.png',use_column_width=True)
+			st.image('resources/imgs/images for streamlit/LR-f1-score.png',use_column_width=True)
 			st.markdown("""<div>
 				<h5 style='color:#00ACEE'>Key Observations</h5>
 				<ul>
@@ -563,10 +673,10 @@ def main():
 					</li>
 				</ul>
 			</div>""",unsafe_allow_html=True)
-		elif modeloptions =="Stochastic Gradient Classifier":
+		elif choose =="Stochastic Gradient Classifier":
 			title_tag("Evaluation Of the Stochastic Gradient Classifier")
 			st.markdown("<h4 style='color:#00ACEE; text-align:center !important'>Stochastic Gradient Classifier Confusion Matrix</h4>",unsafe_allow_html=True)
-			st.image('resources/SGD-cm.png',use_column_width=True)
+			st.image('resources/imgs/images for streamlit/SGD-cm.png',use_column_width=True)
 			st.markdown("""<div>
 				<h5 style='color:#00ACEE'>Key Observations</h5>
 				<p>
@@ -592,7 +702,7 @@ def main():
 				</p>
 			</div>""",unsafe_allow_html=True)
 			st.markdown("<h4 style='color:#00ACEE; text-align:center !important'>Stochastic Gradient Classifier F1-Score predictive accuracy</h4>",unsafe_allow_html=True)
-			st.image('resources/SGD-f1-score.png',use_column_width=True)
+			st.image('resources/imgs/images for streamlit/SGD-f1-score.png',use_column_width=True)
 			st.markdown("""<div>
 				<h5 style='color:#00ACEE'>Key Observations</h5>
 				<p>
