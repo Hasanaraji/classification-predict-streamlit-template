@@ -79,42 +79,6 @@ import streamlit.components.v1 as components
 
 
 
-def sentiment_visual(df1_train):
-	sid = SentimentIntensityAnalyzer()
-	df1_train['scores'] = df1_train['message'].apply(lambda review: sid.polarity_scores(review))
-	df1_train['compound']  = df1_train['scores'].apply(lambda score_dict: score_dict['compound'])
-	df1_train['comp_score'] = df1_train['compound'].apply(sent_decider)
-	fig, axis = plt.subplots(ncols=2, figsize=(15, 5))
-	ax = sns.countplot(x='comp_score', data=df1_train, palette='winter', hue='sentiment', ax=axis[0])
-	axis[0].set_title('Number of Tweets Per Vader Sentiment',fontsize=14)
-	axis[0].set_xlabel('')
-	axis[0].set_ylabel('Tweets')
-	put_numbers_on_bars(ax)
-	ax = sns.countplot(x='sentiment', data=df1_train, palette='winter', hue='comp_score', ax=axis[1])
-	axis[1].set_title('Number of Tweets Per Sentiment Class',fontsize=14)
-	axis[1].set_xlabel('')
-	axis[1].set_ylabel('')
-	put_numbers_on_bars(ax)
-	plt.show()
-	fig, axis = plt.subplots(ncols=2, figsize=(15, 5))
-	counts = (df1_train.groupby(['comp_score'])['sentiment'].value_counts(normalize=True).rename('percentage_tweets').mul(100).reset_index())
-	ax = sns.barplot(x="comp_score", y="percentage_tweets", palette='winter', hue="sentiment", data=counts, ax=axis[0])
-	put_numbers_on_bars(ax)
-	ax.set_xlabel('Vader Sentiment')
-	ax.set_ylabel('Tweets (%)')
-	count = (df1_train.groupby(['sentiment'])['comp_score'].value_counts(normalize=True).rename('percentage_tweets').mul(100).reset_index())
-	ax = sns.barplot(x="sentiment", y="percentage_tweets", palette='winter', hue="comp_score", data=count, ax=axis[1])
-	put_numbers_on_bars(ax)
-	plt.xlabel('Sentiment Class')
-	plt.ylabel('')
-	fig, axis = plt.subplots(ncols=4, figsize=(20, 5))
-	group = ["(Anti)", "(Neutral)", "(Pro)", "(News)"]
-	for i in range(4):
-		df1_train[df1_train['sentiment']==i-1]['comp_score'].value_counts().plot.pie(autopct='%1.1f%%',colormap='winter_r',ax=axis[i])
-		axis[i].set_title('Proportion of Tweets Per Vader Sentiment '+ group[i],fontsize=12)
-		axis[i].set_ylabel('')
-	plt.show()
-	st.pyplot()
 
 def put_numbers_on_bars(axis_object):
     """
@@ -136,38 +100,10 @@ def sent_decider(compound):
         return 'neutral'#0
 
 
-st.cache(suppress_st_warning=True,allow_output_mutation=True)
-def class_analysis(df):
-    df['sent_labels']  = df['sentiment'].map({1:'Pro',2:'News',0:'Neutral',-1: 'Anti'})
-    fig, axes = plt.subplots(ncols=2, nrows=1, figsize=(20, 10), dpi=100)
-    
-    sns.countplot(df['sent_labels'], ax=axes[0])
-    code_labels=['Pro', 'News', 'Neutral', 'Anti']
-    axes[1].pie(df['sent_labels'].value_counts(),labels= code_labels,autopct='%1.0f%%',startangle=90,explode = (0.1, 0.1, 0.1, 0.1))
-    fig.suptitle('Sentiment Class Analysis', fontsize=20)
-    st.pyplot(fig)
 
-st.cache(suppress_st_warning=True,allow_output_mutation=True)
-import plotly.graph_objects as go
-def class_funnel(df):
-	fig = go.Figure(go.Funnel(y = ["Pro","News", "Nuetral", "Anti"],x = round(df.sentiment.value_counts(normalize = True) * 100,2)))
-	fig.update_layout(height=700,width = 900, showlegend=False, title_text="Tweets data distribution by sentiment")
-	fig.show()
-    # st.go(fig)	
+	
 
-st.cache(suppress_st_warning=True,allow_output_mutation=True)
-def class_dist(df):
-    df['sent_labels']  = df['sentiment'].map({-1: 'Anti',0:'Neutral', 1:'Pro', 2:'News'})
-    df['text_length'] = df['message'].apply(lambda x: len(x))
-    fig, axis = plt.subplots(ncols=2,nrows=1, dpi=100)
-    
-    sns.boxplot(x=df['sent_labels'],y=df['text_length'],data=df,ax=axis[0],color = 'orange')
 
-    sns.violinplot(x=df['sent_labels'], y=df['text_length'],ax=axis[1])
-    plt.xlabel('Sentiment Class')
-    plt.ylabel('Tweet Length')
-    plt.tight_layout()
-    st.pyplot(fig)
 
 
 st.cache(suppress_st_warning=True,allow_output_mutation=True)
@@ -333,16 +269,16 @@ def tweet_cloud(df):
 
 def prediction_output(predict):
     if predict[0]==-1:
-        output="The text has been classified as Anti "
+        output="The text has been classified as Anti, which means doesn't  believe in man-made climate change. "
         st.error("Results: {}".format(output))
     elif predict[0]==0:
-        output="The text has been classified as Neutral"
+        output="The text has been classified as Neutral, which means that neither support nor refute climate change theories"
         st.info("Results: {}".format(output))
     elif predict[0]==1:
-        output ="The text has been classified as Pro"
+        output ="The text has been classified as Pro, which means in favor of man-made climate change"
         st.success("Results: {}".format(output))
     else:
-        output = "The text has been classified as News"
+        output = "The text has been classified as News which means this tweets regarding climate change is likely  based on facts"
         st.warning("Results: {}".format(output))
 
 st.cache(suppress_st_warning=True,allow_output_mutation=True)
@@ -404,8 +340,8 @@ def main():
 	# you can create multiple pages this way
 	logo = Image.open('resources/imgs/images for streamlit/logo1.png')
 	st.sidebar.image(logo, use_column_width=True)
-	set_bg_hack('resources/imgs/images for streamlit/bakn.png')
-
+	set_bg_hack('resources/imgs/images for streamlit/Siders analytics presentation.gif')
+	st.markdown("<h1 style='color:#00ACEE'align='center'>DeKabon</h3>",unsafe_allow_html=True)
 	options = ["Text Classification","Exploratory Data Analysis","Model Metrics Evaluation","About Predict","Company Profile"]
 	selection = st.sidebar.selectbox("Menu", options)
 	# Building out the "Information" page
@@ -425,10 +361,9 @@ def main():
 			
 	if selection == "About Predict":
 		title_tag("Climate Change Sentiment Analysis brougth to you by siders analytics")
-		# You can read a markdown file from supporting resources folder
 		st.image('resources/imgs/images for streamlit/twitter-removebg-preview.png', caption='Tweeet Attack',use_column_width=True)
 
-		# st.markdown("<h2 style='color:#00ACEE'>Introduction</h3><br/>",unsafe_allow_html=True)
+
 		title_tag("Introduction")
 		st.image('resources/imgs/images for streamlit/intro.png',use_column_width=True)
 		title_tag("Problem Statement")
@@ -441,7 +376,7 @@ def main():
 	# Building out the predication pages
 	if selection == "Text Classification":
 		with st.sidebar:
-			choose = option_menu("App Models", ["Decision Tree Classifier","RandomForest Classifier","Logisitic Regression Classifier"],
+			choose = option_menu("App Models", ["Linear SVC","Stochastic Gradient Descent","Logisitic Regression Classifier"],
 								icons=['tropical-storm', 'tree', 'kanban', 'bar-chart-steps','bezier', 'alt','bezier2'],
 								menu_icon="app-indicator", default_index=0,
 								styles={
@@ -452,15 +387,15 @@ def main():
 					}
 					)			
 		
-		if choose =="Decision Tree Classifier":
-			title_tag("Decision Tree Classifier")
-			tweet_text = st.text_area("Enter Text to be predicted using Decision Tree Classifier", "Type Here")
-			if st.button("Predict text class with Decision Tree Classifier"):
+		if choose =="Linear SVC":
+			title_tag("Linear SVC")
+			tweet_text = st.text_area("Enter Text to be predicted using Linear SVC", "Type Here")
+			if st.button("Predict text class with Linear SVC"):
 				pred = joblib.load(open(os.path.join("resources/imgs/pkl/ridge_tfidf.pkl"),"rb"))
 				predict = pred.predict([tweet_text])
 				prediction_output(predict)
-			st.info("## Decision Tree Classifier\n *Decision Trees are non-parametric supervised learning techniques for classification and regression (DTs). Decision trees learn from data and then use a series of if-then-else decision rules to approximate a sine curve. Decision trees may be used to handle both categorical and numerical data.")
-			st.image('https://i.ibb.co/wYXFgxd/24.png',use_column_width=True)
+			st.info("## Linear SVC\n *The Linear SVC*, or SVC, is a linear model that can be used to solve classification and regression issues. It can handle both linear and nonlinear problems and is useful for a wide range of applications. SVM is a basic concept: As seen in the picture below, the method generates a line or hyperplane that divides the data into classes.")
+			st.image('https://i.ibb.co/JQqm2vV/A-Group-2-1.png',use_column_width=True)
 
 		if choose =="LGBMClassifier":
 			title_tag("LGBMClassifier")
@@ -490,29 +425,10 @@ def main():
 				pred = joblib.load(open(os.path.join("resources/imgs/pkl/SGD_tfidf.pkl"),"rb"))
 				predict = pred.predict([tweet_text])
 				prediction_output(predict)
-			st.info("## Stochastic Gradient Descent\n**Stochastic Gradient Descent (SGD)** is a quick and easy way to fit linear classifiers and regressors to convex loss functions like Support Vector Machines and Logistic Regression. Despite the fact that SGD has been around for a long time in the machine learning field, it has only lately gained traction in the context of large-scale learning.\nFor each iteration of Stochastic Gradient Descent, a few samples are chosen at random instead of the entire data set.\n The following are some of the benefits of Stochastic Gradient Descent:\n* Effectiveness.\n* Simplicity of implementation (lots of opportunities for code tuning).")
+			st.info("## Stochastic Gradient Descent\n**Stochastic Gradient Descent (SGD)**  is a quick and easy way to fit linear classifiers and regressors to convex loss functions. Despite the fact that SGD has been around for a long time, it has only recently gained traction in the context of large-scale learning. \n The following are some of the benefits of Stochastic Gradient Descent:\n* Effectiveness.\n* Simplicity of implementation (lots of opportunities for code tuning).")
 			st.image('https://i.ibb.co/V2XhNkf/A-Group-2-4.png',use_column_width=True)			
 
-		if choose == "Linear Support Vector Classifier":
-			title_tag("Linear Support Vector Classifier")
-			tweet_text = st.text_area("Enter Text to be predicted using","Type Here")
-			if st.button("Predict text class with Linear Support Vector Classifier"):
-				pred = joblib.load(open(os.path.join("resources/imgs/pkl/Lsvc_tfidf.pkl"),"rb"))
-				predict = pred.predict([tweet_text])
-				prediction_output(predict)
-			st.info("SVM or Support Vector Machine is a linear model for classification and regression problems.It constructs a hyperplane or set of hyperplanes in a high- or infinite-dimensional space, which can be used for classification, regression.")
-
-
-		elif choose =="Support Vector Classifier":
-			title_tag("Support Vector Classifier")
-			svc_text = st.text_area("Enter Text to be predicted using Support Vector Classifier","Type Here")
-			if st.button("Predict text class with Support Vector Classifier"):
-				pred = joblib.load(open(os.path.join("resources/imgs/pkl/SVCGrid.pkl"),"rb"))
-				predict = pred.predict([svc_text])
-				prediction_output(predict)
-			st.info("## Support Vector Classifier \n The Support Vector Machine, or SVM, is a linear model that can be used to solve classification and regression issues. It can handle both linear and nonlinear problems and is useful for a wide range of applications. SVM is a basic concept: As seen in the picture below, the method generates a line or hyperplane that divides the data into classes.")
-			st.image('https://i.ibb.co/JQqm2vV/A-Group-2-1.png',use_column_width=True)
-
+		
 		elif choose =="Logisitic Regression Classifier":
 			title_tag("Logisitic Regression Classifier")
 			logi_text = st.text_area("Enter Text to be predicted using Logisitic Regression Classifier","Type Here")
@@ -520,12 +436,12 @@ def main():
 				pred = joblib.load(open(os.path.join("resources/imgs/pkl/logreg_tfidf.pkl"),"rb"))
 				predict = pred.predict([logi_text])
 				prediction_output(predict)
-			st.info("## Logisitic Regression Classifier\n The statistical approach of **logistic regression** is used to predict binary classes. The result or goal variable is a binary variable. The term dichotomous refers to the fact that there are only two potential classifications. It can, for example, be utilized to solve cancer detection issues. It calculates the likelihood of an event occurring.Logistic regression classifies each data point into the best-estimated class based on its likelihood of belonging to that class.For linearly separable data, logistic regression has been ranked as the highest performing model, especially for predicting binary data (Yes & NO or 1 & 0), and it performs better when there is no class imbalance.\nThe sigmoid function is used by logistic regression models to create predictions, as seen in the diagram below:")
+			st.info("## Logisitic Regression Classifier\n The statistical approach of **logistic regression** is used to predict binary classes. It can, for example, be utilized to solve cancer detection issues. Logistic regression classifies each data point into the best-estimated class based on its likelihood of belonging to that class.\nThe sigmoid function is used by logistic regression models to create predictions, as seen in the diagram below:")
 			st.image('https://i.ibb.co/Rb9F7Zr/A-Group-2-3.png',use_column_width=True)
 
 	if selection == "Exploratory Data Analysis":
 		with st.sidebar:
-			choose = option_menu("EDA visuals", ["Sentiment Class Analysis","Name Entity Recognition","Popular Words Analysis","Word Cloud Analysis"],
+			choose = option_menu("EDA visuals", ["Sentiment Class Analysis","Name Entity Recognition","Word Cloud Analysis","Popular Words Analysis"],
 								icons=['emoji-smile', 'person-circle', 'file-earmark-word-fill', 'cloud-haze2-fill'],
 								menu_icon="app-indicator", default_index=0,
 								styles={
@@ -558,7 +474,7 @@ def main():
 
 	if selection == "Model Metrics Evaluation":
 		with st.sidebar:
-			choose = option_menu("Model Evaluation", ["Linear Support Vector Classifier","Support Vector Classifier","Ridge Classifier","Logisitic Regression Classifier","Stochastic Gradient Classifier"],
+			choose = option_menu("Model Evaluation", ["Linear Support Vector Classifier","Logisitic Regression Classifier","Stochastic Gradient Classifier"],
 								icons=['tropical-storm', 'tree', 'kanban', 'bar-chart-steps','bezier', 'alt','bezier2'],
 								menu_icon="app-indicator", default_index=0,
 								styles={
