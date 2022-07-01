@@ -63,8 +63,8 @@ from  PIL import Image
 import numpy as np
 # import cv2
 import pandas as pd
-from st_aggrid import AgGrid
-import plotly.express as px
+# from st_aggrid import AgGrid
+# import plotly.express as px
 # import io 
 #-------------resources\imgs\pkl\count_vect.pkl
 # Vectorizer
