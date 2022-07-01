@@ -36,7 +36,7 @@ from nltk.stem import WordNetLemmatizer
 import seaborn as sns
 import matplotlib.pyplot as plt
 from nltk.probability import FreqDist
-from wordcloud import WordCloud, ImageColorGenerator
+# from wordcloud import WordCloud, ImageColorGenerator
 import warnings
 from sklearn.svm import LinearSVC
 from sklearn.pipeline import Pipeline
@@ -225,47 +225,47 @@ def popularwords_visualizer(data):
     fig.tight_layout()
     st.pyplot(fig)
 
-st.cache(suppress_st_warning=True,allow_output_mutation=True)
-def wordcloud_visualizer(df):
-    news = df['message'][df['sentiment']==2].str.join(' ')
-    neutral = df['message'][df['sentiment']==2].str.join(' ')
-    pro = df['message'][df['sentiment']==2].str.join(' ')
-    anti = df['message'][df['sentiment']==2].str.join(' ')
-    #Visualize each sentiment class
-    fig, axis = plt.subplots(nrows=2, ncols=2, figsize=(18, 12))
-    news_wordcloud = WordCloud(width=900, height=900, background_color='white', colormap='winter').generate(str(news))
-    axis[0, 0].imshow(news_wordcloud)
-    axis[0, 0].set_title('News Class',fontsize=14)
-    axis[0, 0].axis("off") 
-    neutral_wordcloud = WordCloud(width=900, height=900, background_color='white', colormap='winter', min_font_size=10).generate(str(neutral))
-    axis[1, 0].imshow(neutral_wordcloud)
-    axis[1, 0].set_title('Neutral Class',fontsize=14)
-    axis[1, 0].axis("off") 
+# st.cache(suppress_st_warning=True,allow_output_mutation=True)
+# def wordcloud_visualizer(df):
+#     news = df['message'][df['sentiment']==2].str.join(' ')
+#     neutral = df['message'][df['sentiment']==2].str.join(' ')
+#     pro = df['message'][df['sentiment']==2].str.join(' ')
+#     anti = df['message'][df['sentiment']==2].str.join(' ')
+#     #Visualize each sentiment class
+#     fig, axis = plt.subplots(nrows=2, ncols=2, figsize=(18, 12))
+#     news_wordcloud = WordCloud(width=900, height=900, background_color='white', colormap='winter').generate(str(news))
+#     axis[0, 0].imshow(news_wordcloud)
+#     axis[0, 0].set_title('News Class',fontsize=14)
+#     axis[0, 0].axis("off") 
+#     neutral_wordcloud = WordCloud(width=900, height=900, background_color='white', colormap='winter', min_font_size=10).generate(str(neutral))
+#     axis[1, 0].imshow(neutral_wordcloud)
+#     axis[1, 0].set_title('Neutral Class',fontsize=14)
+#     axis[1, 0].axis("off") 
     
-    pro_wordcloud = WordCloud(width=900, height=900, background_color='white', colormap='winter', min_font_size=10).generate(str(pro))
-    axis[0, 1].imshow(pro_wordcloud)
-    axis[0, 1].set_title('Pro Class',fontsize=14)
-    axis[0, 1].axis("off") 
-    anti_wordcloud = WordCloud(width=900, height=900, background_color='white', colormap='winter', min_font_size=10).generate(str(anti))
-    axis[1, 1].imshow(anti_wordcloud)
-    axis[1, 1].set_title('Anti Class',fontsize=14)
-    axis[1, 1].axis("off")
-    st.pyplot(fig)
+#     pro_wordcloud = WordCloud(width=900, height=900, background_color='white', colormap='winter', min_font_size=10).generate(str(pro))
+#     axis[0, 1].imshow(pro_wordcloud)
+#     axis[0, 1].set_title('Pro Class',fontsize=14)
+#     axis[0, 1].axis("off") 
+#     anti_wordcloud = WordCloud(width=900, height=900, background_color='white', colormap='winter', min_font_size=10).generate(str(anti))
+#     axis[1, 1].imshow(anti_wordcloud)
+#     axis[1, 1].set_title('Anti Class',fontsize=14)
+#     axis[1, 1].axis("off")
+#     st.pyplot(fig)
 
 
-def tweet_cloud(df):
-	mask = np.array(Image.open('resources/imgs/images for streamlit/10wmt-superJumbo-v4.jpg'))
-	words = df['message']
-	allwords = []
-	for wordlist in words:
-		allwords += wordlist
-	mostcommon = FreqDist(allwords).most_common(10000)
-	wordcloud = WordCloud(width=1000, height=1000, mask = mask, background_color='white').generate(str(mostcommon))
-	fig = plt.figure(figsize=(30,10), facecolor='white')
-	plt.imshow(wordcloud, interpolation="bilinear")
-	plt.axis('off')
-	plt.tight_layout(pad=0)
-	st.pyplot(fig)
+# def tweet_cloud(df):
+# 	mask = np.array(Image.open('resources/imgs/images for streamlit/10wmt-superJumbo-v4.jpg'))
+# 	words = df['message']
+# 	allwords = []
+# 	for wordlist in words:
+# 		allwords += wordlist
+# 	mostcommon = FreqDist(allwords).most_common(10000)
+# 	wordcloud = WordCloud(width=1000, height=1000, mask = mask, background_color='white').generate(str(mostcommon))
+# 	fig = plt.figure(figsize=(30,10), facecolor='white')
+# 	plt.imshow(wordcloud, interpolation="bilinear")
+# 	plt.axis('off')
+# 	plt.tight_layout(pad=0)
+# 	st.pyplot(fig)
 
 def prediction_output(predict):
     if predict[0]==-1:
